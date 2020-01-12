@@ -1,0 +1,1 @@
+This is a simple report bot. Requires the amazing python-telegram-bot library and mongodb.
