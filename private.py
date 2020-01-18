@@ -41,6 +41,7 @@ def select_group(update, context):
     user_data = context.user_data
     if "groups" not in user_data:
         query.edit_message_text(strings.EXPIRED)
+        query.answer()
         return
     chat_id = int(query.data.split("_")[1])
     for group in user_data["groups"]:
@@ -52,6 +53,7 @@ def select_group(update, context):
     query.edit_message_text(strings.SETTINGS_MESSAGE.format(user_data["group"].title),
                             reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
     del user_data["groups"]
+    query.answer()
 
 
 @group_check
@@ -129,6 +131,7 @@ def back(update, context):
     context.user_data["groups"] = groups
     if "group" in context.user_data:
         del context.user_data["group"]
+    update.callback_query.answer()
 
 
 def reload_admins(update, _):
