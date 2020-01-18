@@ -49,6 +49,7 @@ def edit(update, group):
     query = update.callback_query
     user_id = update.effective_user.id
     query.edit_message_reply_markup(InlineKeyboardMarkup(group_setting_buttons(group, user_id)))
+    query.answer()
 
 
 def ceil_dt(dt, delta):
