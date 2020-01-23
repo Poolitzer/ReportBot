@@ -1,3 +1,4 @@
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.utils.helpers import mention_html
 
 import strings
@@ -14,13 +15,13 @@ def added(update, context):
 
 
 def report(update, context):
-    report_string = context.matches[0].string
+    report_string = str(context.matches[0].group(0)).strip()
     chat_id = update.effective_chat.id
-    for k, v in update.effective_message.parse_entities().items():
-        if report_string == v:
-            # check if the report is in code or pre tags, in which case we ignore it (we nerds ;P)
-            if k.type == "code" or k.type == "pre":
-                return
+    # check if the report is in code or pre tags, in which case we ignore it (we nerds ;P)
+    for k, v in update.effective_message.parse_entities(["code", "pre"]).items():
+        # we use in here in case more then our trigger is in the code tags
+        if report_string in v:
+            return
     if report_string.startswith("@admin"):
         proceed = database.group_mention(chat_id, "admin")
     # we can use else, since the regex filter takes the actual filtering out of our hands, which is neat
@@ -37,9 +38,14 @@ def report(update, context):
         message.reply_text(mention_string + strings.REPORT, parse_mode="HTML")
     if proceed.pm:
         title = update.effective_chat.title
-        link = message.link
+        if update.effective_chat.username:
+            title = f"<a href=\"https://t.me/{update.effective_chat.username}\">{title}</a>"
+        else:
+            title = f"<b>{title}</b>"
+        button = [[InlineKeyboardButton("Message", url=message.link)]]
         for user_id in proceed.pm:
-            context.bot.send_message(user_id, strings.PM.format(title, link))
+            context.bot.send_message(user_id, strings.PM.format(title), parse_mode="HTML",
+                                     reply_markup=InlineKeyboardMarkup(button))
 
 
 def reload_admins(update, _):

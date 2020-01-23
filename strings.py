@@ -1,7 +1,7 @@
 ADDED = "Hello there, thanks for adding me to your group. I will report reports to the group admins. Every command " \
         "only works in private for the admins, I don't reply here."
 REPORT = "Admins have been notified."
-PM = "Hey there. There was a report in group {}, direct link to the message: {}"
+PM = "Hey there. There was a report in group {}"
 ADMIN_RELOAD = "Admin list has been reloaded"
 PRIVATE_START = "Hey there. I am TheReportBot, I help forwarding reports to the group admins. If you are not a group " \
                 "admin, I am afraid I am of not much use to you in PM. If you are though, you can run /settings to " \
