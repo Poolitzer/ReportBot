@@ -13,8 +13,8 @@ SETTINGS_COMMAND = "You want to change the settings of one of the groups you are
 SETTINGS_MESSAGE = "You are changing settings for the group <b>{}</b>\nLet me explain what the buttons you see below " \
                    "mean:\n\n* <b>Report</b>: Which report triggers are used in the group. Its @admin and/or /report." \
                    "\n* <b>Reply</b>: If the bot replies to the report in the group or not.\n* <b>Mention</b>: How " \
-                   "you are mentioned. Either mentioned in the reply message (for that, Reply needs to be " \
-                   "activated), getting a PM from the bot with the direct link to the message or not at all.\n" \
+                   "<i>you</i> are mentioned. Either mentioned in the reply message (for that, <b>Reply</b> needs to " \
+                   "be activated), getting a PM from the bot with the direct link to the message or not at all.\n" \
                    "* <b>Back:</b> Get back to the group selection"
 SETTINGS_BUTTONS = ["Report: ", "Reply: ", "Mention: ", "Back"]
 SETTINGS_BUTTONS_DATA = ["set_report", "set_reply", "set_mention", "set_back"]
@@ -35,7 +35,7 @@ TIMEOUT_SUCCEED = "Hey, I added you to the timeout list. Keep in mind that chang
 TIMEOFF_COMMAND = "Okay, a timeoff. If you want more information about this command, run /help. The syntax is\n<code>" \
                   "Weekday_in_three_letters group_ids time\nNext_weekday...</code>\nwhich could look like this:\n" \
                   "<code>Mon group_id1,group_id2,group_id3 00:00,13:00\nTue group_id1,group_id3 08:00,12:00\nFri all " \
-                  "00:00,24:00</code>\n. No spaces between the ids or the time. Every group has its own id:<code>{}" \
+                  "00:00,24:00</code>\nNo spaces between the ids or the time. Every group has its own id:<code>{}" \
                   "</code>\nP.S.: The server runs on UTC, which means it's currently {}"
 TIMEOFF_WHITESPACE = "Im sorry, but you messed up the spaces in paragraph {}"
 TIMEOFF_INDEX = "You have a wrong id in paragraph {}. Or you messed up with spaces."
@@ -45,11 +45,11 @@ TIMEOFF_DAY = "You messed up the day in paragraph {}. Im gonna give the to you o
 TIMEOFF_SUCCEED = "Great, you were added to the timeoff list. In case you want to get off it, send /timeoff_del or " \
                   "make a new timeoff aktion, which will override the existing one."
 TIMEOFF_DELETE_SUCCESS = "You are removed from the timeoff list"
-TIMEOFF_DELETE_FAIL = "You are are not on the timeoff list, therefore you arent removed..."
+TIMEOFF_DELETE_FAIL = "You are are not on the timeoff list, therefore you aren't removed..."
 PRIVATE_HELP = "I only respond to commands in private.\n/settings - gives you a list of groups which you are admin " \
                "in, which you then can change their settings for\n\n<b>Timout and timeoff in general</b> are " \
                "overcomplex automatic mute options. During the time you give, they put your mention status on off in " \
-               "the groups you set. After the time, they reset it to your previuos mention status. The check runs " \
+               "the groups you set. After the time, they reset it to your previous mention status. The check runs " \
                "every half hour. Now to the actual commands\n/timeout - you can take a timeout from being mentioned " \
                "in your groups. This works like a timer with a 24 hour format.\n/timeoff - you can set for every day " \
                "in the week different times you want to be off. Also supports different groups, but only one setting " \

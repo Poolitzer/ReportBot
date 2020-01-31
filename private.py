@@ -159,7 +159,7 @@ def timeout(update, context):
     message = update.effective_message
     user_input = message.text.split(" ")
     user_id = update.effective_user.id
-    if len(user_input) > 2:
+    if len(user_input) != 2:
         message.reply_text(strings.TIMEOUT_WHITESPACE)
         return
     if user_input[0] == "all":
@@ -169,7 +169,7 @@ def timeout(update, context):
         for index in user_input[0].split(","):
             try:
                 groups.append(user_data["groups"][int(index)])
-            except IndexError:
+            except IndexError or ValueError:
                 message.reply_text(strings.TIMEOUT_INDEX)
                 return
     try:
@@ -219,7 +219,7 @@ def timeoff(update, context):
         user_days[index] = string.split(" ")
     admin = Admin(user_id)
     for index, user_day in enumerate(user_days):
-        if len(user_day) > 3:
+        if len(user_day) != 3:
             message.reply_text(strings.TIMEOFF_WHITESPACE.format(index))
         if user_day[1] == "all":
             groups = user_data["groups"]
@@ -228,7 +228,7 @@ def timeoff(update, context):
             for group_id in user_day[1].split(","):
                 try:
                     groups.append(user_data["groups"][int(group_id)])
-                except IndexError:
+                except IndexError or ValueError:
                     message.reply_text(strings.TIMEOFF_INDEX.format(index))
                     return
         group_ids = []
@@ -254,7 +254,7 @@ def timeoff(update, context):
             return
         if not user_day[0].lower() in admin.days:
             message.reply_text(strings.TIMEOFF_DAY.format(index))
-            return 
+            return
         admin.days[user_day[0].lower()] = {"groups": group_ids, "until": user_day[2].split(",")[1],
                                            "when": float(user_day[2].split(",")[0].replace(":", "."))}
     database.insert_timeoff(admin)
