@@ -252,11 +252,11 @@ def timeoff(update, context):
         except ValueError:
             message.reply_text(strings.TIMEOFF_DATE.format(index))
             return
-        try:
-            admin.days[user_day[0].lower()] = {"groups": group_ids, "until": user_day[2].split(",")[1],
-                                               "when": float(user_day[2].split(",")[0].replace(":", "."))}
-        except KeyError:
+        if not user_day[0].lower() in admin.days:
             message.reply_text(strings.TIMEOFF_DAY.format(index))
+            return 
+        admin.days[user_day[0].lower()] = {"groups": group_ids, "until": user_day[2].split(",")[1],
+                                           "when": float(user_day[2].split(",")[0].replace(":", "."))}
     database.insert_timeoff(admin)
     update.effective_message.reply_text(strings.TIMEOFF_SUCCEED)
     user_data.clear()
