@@ -35,6 +35,7 @@ def main():
     dp.add_handler(CommandHandler("timeoff", private.timeoff_command, Filters.private))
     dp.add_handler(MessageHandler(Filters.private & Filters.text, private.timeoff), 1)
     dp.add_handler(CommandHandler("timeoff_del", private.timeoff_del, Filters.private))
+    dp.add_error_handler(private.error_handler)
     # just for the sake of it (BLUE TEXT)
     dp.add_handler(CommandHandler("reload_admins", private.reload_admins, Filters.private))
     updater.start_polling()

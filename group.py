@@ -1,4 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import Unauthorized
 from telegram.utils.helpers import mention_html
 
 import strings
@@ -44,8 +45,11 @@ def report(update, context):
             title = f"<b>{title}</b>"
         button = [[InlineKeyboardButton("Message", url=message.link)]]
         for user_id in proceed.pm:
-            context.bot.send_message(user_id, strings.PM.format(title), parse_mode="HTML",
-                                     reply_markup=InlineKeyboardMarkup(button))
+            try:
+                context.bot.send_message(user_id, strings.PM.format(title), parse_mode="HTML",
+                                         reply_markup=InlineKeyboardMarkup(button))
+            except Unauthorized:
+                database.insert_group_mention(chat_id, proceed.group, "o", user_id)
 
 
 def reload_admins(update, _):
