@@ -3,6 +3,8 @@ import datetime
 from database import database
 from objects import Admin
 
+from telegram.error import BadRequest
+
 
 def half_hourly(context):
     now = datetime.datetime.now()
@@ -46,3 +48,25 @@ def half_hourly(context):
         context_dict = {"rotation": rotation, "until": admin.days[day]["until"], "groups": groups}
         context.job.context["admins"][admin.id] = context_dict
         database.start_timeout(groups.keys(), admin.id)
+
+
+def group_check(context):
+    for group in database.get_groups():
+        try:
+            admins = context.bot.get_chat_administrators(group.id)
+        except BadRequest as e:
+            if e.message == "Chat not found":
+                database.remove_group(group.id)
+                continue
+            else:
+                break
+        admin_ids = [admin.user.id for admin in admins]
+        if group.admins == admin_ids:
+            continue
+        for saved_id in group.admins:
+            if saved_id not in admin_ids:
+                database.remove_group_admin(group.id, saved_id)
+            else:
+                admin_ids.pop(saved_id)
+        if admin_ids:
+            database.add_group_admins(group.id, admin_ids)

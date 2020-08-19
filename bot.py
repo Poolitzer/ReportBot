@@ -5,7 +5,7 @@ from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, Callb
 
 import group
 import private
-from jobs import half_hourly
+from jobs import half_hourly, group_check
 from tokens import TELEGRAM
 from utils import ceil_dt
 
@@ -45,6 +45,7 @@ def main():
     td = dt - now
     updater.job_queue.run_repeating(half_hourly, 60*30, first=td.total_seconds(), name="half-hourly",
                                     context={"admins": {}, "date": now.strftime("%d.%m")})
+    updater.job_queue.run_daily(group_check, datetime.time(12, 0, 0), name="Group check")
     updater.idle()
 
 

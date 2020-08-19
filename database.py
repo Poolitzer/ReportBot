@@ -21,6 +21,13 @@ class Database:
     def insert_group_id(self, old_group_id, new_group_id):
         self.db["groups"].update_one({"id": old_group_id}, {"$set": {"id": new_group_id}})
 
+    def get_groups(self):
+        groups = self.db["groups"].find({}, {"_id": 0})
+        return [Group(**group) for group in groups]
+
+    def remove_group(self, group_id):
+        self.db["groups"].delete_one({"id": group_id})
+
     def group_mention(self, group_id, what):
         class Return:
             def __init__(self, group):
@@ -38,6 +45,9 @@ class Database:
 
     def add_group_admins(self, chat_id, admin_ids):
         self.db["groups"].update_one({"id": chat_id}, {"$addToSet": {"admins": {"$each": admin_ids}}})
+
+    def remove_group_admin(self, chat_id, admin_id):
+        self.db["groups"].update_one({"id": chat_id}, {"$pull": {"admins": admin_id}})
 
     def get_groups_admin(self, admin_id):
         groups = self.db["groups"].find({"admins": admin_id}, {"_id": 0})
