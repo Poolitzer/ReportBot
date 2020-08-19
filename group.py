@@ -1,5 +1,5 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.error import Unauthorized
+from telegram.error import Unauthorized, BadRequest
 from telegram.utils.helpers import mention_html
 
 import strings
@@ -36,7 +36,13 @@ def report(update, context):
         message = update.effective_message
     if isinstance(proceed.group, list):
         mention_string = "".join([mention_html(i, u'\u200D') for i in proceed.group])
-        message.reply_text(mention_string + strings.REPORT, parse_mode="HTML")
+        try:
+            message.reply_text(mention_string + strings.REPORT, parse_mode="HTML")
+        except BadRequest as e:
+            if e.message == "Reply message not found":
+                message.reply_text(mention_string + strings.REPORT, parse_mode="HTML", quote=False)
+            else:
+                raise
     if proceed.pm:
         title = update.effective_chat.title
         if update.effective_chat.username:
