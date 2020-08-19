@@ -67,6 +67,6 @@ def group_check(context):
             if saved_id not in admin_ids:
                 database.remove_group_admin(group.id, saved_id)
             else:
-                admin_ids.pop(saved_id)
+                admin_ids.remove(saved_id)
         if admin_ids:
             database.add_group_admins(group.id, admin_ids)
