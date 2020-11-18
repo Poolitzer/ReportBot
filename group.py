@@ -49,12 +49,15 @@ def report(update, context):
             title = f"<a href=\"https://t.me/{update.effective_chat.username}\">{title}</a>"
         else:
             title = f"<b>{title}</b>"
-        button = [[InlineKeyboardButton("Message", url=message.link)]]
+        if message.link:
+            button = [[InlineKeyboardButton("Message", url=message.link)]]
+        else:
+            button = [[]]
         for user_id in proceed.pm:
             try:
                 context.bot.send_message(user_id, strings.PM.format(title), parse_mode="HTML",
                                          reply_markup=InlineKeyboardMarkup(button))
-            except Unauthorized:
+            except Unauthorized or BadRequest:
                 database.insert_group_mention(chat_id, proceed.group, "o", user_id)
 
 

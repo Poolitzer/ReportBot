@@ -3,7 +3,7 @@ import datetime
 from database import database
 from objects import Admin
 
-from telegram.error import BadRequest
+from telegram.error import BadRequest, Unauthorized
 
 
 def half_hourly(context):
@@ -56,6 +56,12 @@ def group_check(context):
             admins = context.bot.get_chat_administrators(group.id)
         except BadRequest as e:
             if e.message == "Chat not found":
+                database.remove_group(group.id)
+                continue
+            else:
+                break
+        except Unauthorized as e:
+            if e.message == "Forbidden: bot was kicked from the supergroup chat":
                 database.remove_group(group.id)
                 continue
             else:
