@@ -57,7 +57,7 @@ def report(update, context):
             try:
                 context.bot.send_message(user_id, strings.PM.format(title), parse_mode="HTML",
                                          reply_markup=InlineKeyboardMarkup(button))
-            except Unauthorized or BadRequest:
+            except Unauthorized and BadRequest:
                 database.insert_group_mention(chat_id, proceed.group, "o", user_id)
 
 
