@@ -26,6 +26,10 @@ class Database:
         return [Group(**group) for group in groups]
 
     def remove_group(self, group_id):
+        group = self.db["groups"].find_one({"id": group_id})
+        if group["linked_groups"]:
+            for chat_id in group["linked_groups"]:
+                self.db["groups"].find_one_and_update({"id": chat_id}, {"$pull": {"linked_groups": group_id}})
         self.db["groups"].delete_one({"id": group_id})
 
     def group_mention(self, group_id, what):
@@ -37,6 +41,7 @@ class Database:
                 else:
                     self.group = False
                 self.pm = [x for x in group["pm"] if x not in group["off"]]
+                self.administration = group["administration"]
 
         get = self.db["groups"].find_one({"id": group_id, what: {"$eq": True}})
         if get:
@@ -96,6 +101,31 @@ class Database:
                                                        "$addToSet": {insert[1]: user_id}}, {"_id": 0},
                                                       return_document=ReturnDocument.AFTER)
         return Group(**group)
+
+    def insert_group_administration(self, chat_id, value):
+        group = self.db["groups"].find_one_and_update({"id": chat_id}, {"$set": {"administration": value}}, {"_id": 0},
+                                                      return_document=ReturnDocument.AFTER)
+        return Group(**group)
+
+    def insert_group_link(self, chat_id, to_link_id):
+        group = self.db["groups"].find_one_and_update({"id": chat_id}, {"$addToSet": {"linked_groups": to_link_id}},
+                                                      {"_id": 0}, return_document=ReturnDocument.AFTER)
+        group2 = self.db["groups"].find_one_and_update({"id": to_link_id}, {"$addToSet": {"linked_groups": chat_id}},
+                                                       {"_id": 0}, return_document=ReturnDocument.AFTER)
+        return Group(**group), Group(**group2)
+
+    def remove_group_link(self, chat_id, to_link_id):
+        group = self.db["groups"].find_one_and_update({"id": chat_id}, {"$pull": {"linked_groups": to_link_id}},
+                                                      {"_id": 0}, return_document=ReturnDocument.AFTER)
+        group2 = self.db["groups"].find_one_and_update({"id": to_link_id}, {"$pull": {"linked_groups": chat_id}},
+                                                       {"_id": 0}, return_document=ReturnDocument.AFTER)
+        return Group(**group), Group(**group2)
+
+    def get_group_link(self, chat_id):
+        group = self.db["groups"].find_one({"id": chat_id})
+        if group:
+            return group["linked_groups"]
+        return False
 
     def start_timeout(self, chat_ids, user_id):
         requests = []

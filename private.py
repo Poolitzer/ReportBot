@@ -1,4 +1,5 @@
 import datetime
+import html
 import sys
 import traceback
 
@@ -8,6 +9,7 @@ from telegram.utils.helpers import mention_html
 import strings
 from database import database
 from objects import Admin
+from tokens import DEV_ID
 from utils import build_menu, group_setting_buttons, edit, group_id_generator
 
 
@@ -32,7 +34,7 @@ def settings(update, context):
     groups = database.get_groups_admin(user_id)
     buttons = [InlineKeyboardButton(group.title, callback_data=f"settings_{group.id}") for group in groups]
     update.effective_message.reply_text(strings.SETTINGS_COMMAND,
-                                        reply_markup=InlineKeyboardMarkup(build_menu(buttons, 4)))
+                                        reply_markup=InlineKeyboardMarkup(build_menu(buttons, 2)))
     context.user_data["groups"] = groups
 
 
@@ -52,7 +54,7 @@ def select_group(update, context):
     buttons = group_setting_buttons(user_data["group"], user_id)
     query.edit_message_text(strings.SETTINGS_MESSAGE.format(user_data["group"].title),
                             reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
-    del user_data["groups"]
+    user_data["groups"].remove(context.user_data["group"])
     query.answer()
 
 
@@ -122,12 +124,111 @@ def group_mention(update, context):
     edit(update, new_group)
 
 
+@group_check
+def group_administration(update, context):
+    # this changes the admin mode setting
+    group = context.user_data["group"]
+    # checks current setting of administration, we need to flip that around
+    if group.administration:
+        # disabling an active administration mode is easy
+        group.administration = False
+    else:
+        # activating it is not. we need to make sure the bot is an admin with the appropriate rights
+        bot_admin = context.bot.get_chat_member(chat_id=group.id, user_id=context.bot.id)
+        query = update.callback_query
+        # if the bot is not an admin, the other attributes won't be there, that is why we have two checks
+        if bot_admin.status != "administrator":
+            query.answer(strings.NOT_ADMIN, show_alert=True)
+            return
+        # bot is admin, but does it have the correct rights?
+        if not bot_admin.can_delete_messages or not bot_admin.can_restrict_members:
+            query.answer(strings.NOT_ADMIN, show_alert=True)
+            return
+        # the both returns previously made sure we can only be here with the correct admin rights so we good
+        group.administration = True
+    # here we add the information to the db
+    new_group = database.insert_group_administration(group.id, group.administration)
+    # updating our cache
+    context.user_data["group"] = new_group
+    # returning it to the edit function for the message
+    edit(update, new_group)
+
+
+@group_check
+def group_link(update, context):
+    # this changes the linked groups for administration mode
+    group = context.user_data["group"]
+    query = update.callback_query
+    # these are all the groups the admin is admin in, minus the one we edit, thanks to the select group function
+    # we are going to iterate through them and add them to a list of buttons which we are going to attach to the message
+    buttons = []
+    linked_to_text = ""
+    # i is the index in the list, so we know which group the admin selects
+    for i, g in enumerate(context.user_data["groups"]):
+        # here we decide if the callback is the one to link or unlink the group, sparing us the logic later. If the
+        # group is already in linked_groups, the admin wants to unlink them, otherwise link
+        if g.id in group.linked_groups:
+            buttons.append(InlineKeyboardButton(g.title, callback_data=f"set_linked_del_{i}"))
+            linked_to_text += f"<b>{g.title}</b>, "
+        else:
+            buttons.append(InlineKeyboardButton(g.title, callback_data=f"set_linked_add_{i}"))
+    # if no group is linked, we change our string to say this to the user
+    if not linked_to_text:
+        linked_to_text = "None"
+    # here we delete the last `, ` from the string
+    else:
+        linked_to_text = linked_to_text[:-2]
+    # this back button will be used to get back to the settings menu of the group
+    back_button = InlineKeyboardButton("Back", callback_data="set_linked_back")
+    # here we put it in a reply markup, and generate the string to send it to the user (speak: edit the message)
+    reply_markup = InlineKeyboardMarkup(build_menu(buttons, 2, footer_buttons=back_button))
+    text = strings.LINK_GROUP.format(group.title, linked_to_text)
+    query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
+    # this call is needed, otherwise some clients will show a loading indication
+    query.answer()
+
+
+@group_check
+def group_do_link(update, context):
+    # this changes the linked groups for administration mode
+    group = context.user_data["group"]
+    query = update.callback_query
+    # we take data from the callback_query. 2 is what we should do (add or delete), 3 is the group's id
+    data = query.data.split("_")
+    # we take the group object from cache
+    linked_group = context.user_data["groups"][int(data[3])]
+    # now if we add we call insert group, if we delete remove, then we get the two new group objects back from db
+    if data[2] == "add":
+        group, linked_group = database.insert_group_link(group.id, linked_group.id)
+    else:
+        group, linked_group = database.remove_group_link(group.id, linked_group.id)
+    # which we give back to our cache
+    context.user_data["group"] = group
+    context.user_data["groups"][int(data[3])] = linked_group
+    # then we call the link function to override the current message, since the cache changes, the text's message does
+    # as well
+    group_link(update, context)
+
+
+@group_check
+def group_link_back(update, context):
+    # this changes the message + buttons back to the normal settings
+    query = update.callback_query
+    user_id = update.effective_user.id
+    # this is the same as select_group outcome
+    buttons = group_setting_buttons(context.user_data["group"], user_id)
+    query.edit_message_text(strings.SETTINGS_MESSAGE.format(context.user_data["group"].title),
+                            reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
+    # this call is needed, otherwise some clients will show a loading indication
+    query.answer()
+
+
 def back(update, context):
     user_id = update.effective_user.id
     groups = database.get_groups_admin(user_id)
     buttons = [InlineKeyboardButton(group.title, callback_data=f"settings_{group.id}") for group in groups]
     update.callback_query.edit_message_text(strings.SETTINGS_COMMAND,
-                                            reply_markup=InlineKeyboardMarkup(build_menu(buttons, 4)))
+                                            reply_markup=InlineKeyboardMarkup(build_menu(buttons, 2)))
     context.user_data["groups"] = groups
     if "group" in context.user_data:
         del context.user_data["group"]
@@ -278,16 +379,17 @@ def error_handler(update, context):
     if update.effective_user:
         payload += f' with the user {mention_html(update.effective_user.id, update.effective_user.first_name)}'
     # there are more situations when you don't get a chat
-    if update.effective_chat:
-        payload += f' within the chat <i>{update.effective_chat.title}</i>'
+    if update.effective_chat and update.effective_chat.type != "private":
+        payload += f' within the chat <i>{html.escape(update.effective_chat.title)}</i>'
         if update.effective_chat.username:
-            payload += f' (@{update.effective_chat.username})'
+            payload += f' (@{html.escape(update.effective_chat.username)})'
     # but only one where you have an empty payload by now: A poll (buuuh)
     if update.poll:
         payload += f' with the poll id {update.poll.id}.'
-    trace = "".join(traceback.format_tb(sys.exc_info()[2]))
-    text = f"Oh no. The error <code>{context.error}</code> happened{payload}. The type of the chat is " \
-           f"<code>{chat.type}</code>. The current user data is <code>{context.user_data}</code>, the chat data " \
-           f"<code>{context.chat_data}</code>.\nThe full traceback:\n\n<code>{trace}</code>"
-    context.bot.send_message(208589966, text, parse_mode="HTML")
+    context.bot.send_message(DEV_ID, "Error happened:", parse_mode="HTML")
+    trace = html.escape("".join(traceback.format_tb(sys.exc_info()[2])))
+    text = f"Oh no. The error <code>{context.error}</code> happened{payload}. The type of the chat " \
+           f"is <code>{chat.type}</code>. The current user data is <code>{context.user_data}</code>," \
+           f"the chat data <code>{context.chat_data}</code>.\nThe full traceback:\n\n<code>{trace}</code>"
+    context.bot.send_message(DEV_ID, text, parse_mode="HTML")
     raise

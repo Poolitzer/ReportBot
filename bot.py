@@ -5,12 +5,15 @@ from telegram.ext import Updater, MessageHandler, Filters, CommandHandler, Callb
 
 import group
 import private
+import report_callback
 from jobs import half_hourly, group_check
 from tokens import TELEGRAM
 from utils import ceil_dt
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO, filename="log.log")
+aps_logger = logging.getLogger('apscheduler')
+aps_logger.setLevel(logging.WARNING)
 
 
 def main():
@@ -19,25 +22,36 @@ def main():
     # group handlers
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, group.added))
     # thanks to https://t.me/dotvhs, who likes regex (weird). test: https://regex101.com/r/h4oH0X/2
-    dp.add_handler(MessageHandler(Filters.regex(r"(\s|^)(/report|@admins?)(\s|$)") & Filters.group, group.report))
-    dp.add_handler(CommandHandler("reload_admins", group.reload_admins, Filters.group))
+    dp.add_handler(MessageHandler(Filters.regex(r"(\s|^)(/report|@admins?)(\s|$)") & Filters.chat_type.groups,
+                                  group.report))
+    dp.add_handler(CommandHandler("reload_admins", group.reload_admins, Filters.chat_type.groups))
     # private handlers
-    dp.add_handler(CommandHandler("start", private.start, Filters.private))
-    dp.add_handler(CommandHandler("settings", private.settings, Filters.private))
+    dp.add_handler(CommandHandler("start", private.start, Filters.chat_type.private))
+    dp.add_handler(CommandHandler("settings", private.settings, Filters.chat_type.private))
     dp.add_handler(CallbackQueryHandler(private.select_group, pattern="settings"))
     dp.add_handler(CallbackQueryHandler(private.group_report, pattern="set_report"))
     dp.add_handler(CallbackQueryHandler(private.group_reply_confirmation, pattern="set_reply"))
     dp.add_handler(CallbackQueryHandler(private.group_mention, pattern="set_mention"))
+    dp.add_handler(CallbackQueryHandler(private.group_administration, pattern="set_administration"))
+    dp.add_handler(CallbackQueryHandler(private.group_link_back, pattern="set_linked_back"))
+    dp.add_handler(CallbackQueryHandler(private.group_do_link, pattern="set_linked"))
+    dp.add_handler(CallbackQueryHandler(private.group_link, pattern="set_link"))
     dp.add_handler(CallbackQueryHandler(private.back, pattern="set_back"))
-    dp.add_handler(CommandHandler("timeout", private.timeout_command, Filters.private))
-    dp.add_handler(CommandHandler("help", private.help_command, Filters.private))
-    dp.add_handler(MessageHandler(Filters.private & Filters.text, private.timeout))
-    dp.add_handler(CommandHandler("timeoff", private.timeoff_command, Filters.private))
-    dp.add_handler(MessageHandler(Filters.private & Filters.text, private.timeoff), 1)
-    dp.add_handler(CommandHandler("timeoff_del", private.timeoff_del, Filters.private))
+    dp.add_handler(CommandHandler("timeout", private.timeout_command, Filters.chat_type.private))
+    dp.add_handler(CommandHandler("help", private.help_command, Filters.chat_type.private))
+    dp.add_handler(MessageHandler(Filters.chat_type.private & Filters.text, private.timeout))
+    dp.add_handler(CommandHandler("timeoff", private.timeoff_command, Filters.chat_type.private))
+    dp.add_handler(MessageHandler(Filters.chat_type.private & Filters.text, private.timeoff), 1)
+    dp.add_handler(CommandHandler("timeoff_del", private.timeoff_del, Filters.chat_type.private))
+    # this is the administration mode where the bot can kick and restrict members
+    dp.add_handler(CallbackQueryHandler(report_callback.ignore, pattern="report_ignore"))
+    dp.add_handler(CallbackQueryHandler(report_callback.delete, pattern="report_del"))
+    dp.add_handler(CallbackQueryHandler(report_callback.restrict, pattern="report_restrict"))
+    dp.add_handler(CallbackQueryHandler(report_callback.ban, pattern="report_ban"))
     dp.add_error_handler(private.error_handler)
     # just for the sake of it (BLUE TEXT)
-    dp.add_handler(CommandHandler("reload_admins", private.reload_admins, Filters.private))
+    dp.add_handler(CommandHandler("reload_admins", private.reload_admins, Filters.chat_type.private))
+    # this adds a setting to enable group administration mode
     updater.start_polling()
     now = datetime.datetime.now()
     dt = ceil_dt(now, datetime.timedelta(minutes=30))

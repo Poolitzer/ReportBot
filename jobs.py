@@ -1,9 +1,13 @@
 import datetime
+import io
+import subprocess
 
 from database import database
 from objects import Admin
 
 from telegram.error import BadRequest, Unauthorized
+
+from tokens import BACKUP_CHANNEL
 
 
 def half_hourly(context):
@@ -54,14 +58,8 @@ def group_check(context):
     for group in database.get_groups():
         try:
             admins = context.bot.get_chat_administrators(group.id)
-        except BadRequest as e:
-            if e.message == "Chat not found":
-                database.remove_group(group.id)
-                continue
-            else:
-                break
-        except Unauthorized as e:
-            if e.message == "Forbidden: bot was kicked from the supergroup chat":
+        except BadRequest and Unauthorized as e:
+            if e.message == "Chat not found" or e.message == "Forbidden: bot was kicked from the supergroup chat":
                 database.remove_group(group.id)
                 continue
             else:
@@ -72,7 +70,18 @@ def group_check(context):
         for saved_id in group.admins:
             if saved_id not in admin_ids:
                 database.remove_group_admin(group.id, saved_id)
+                # this makes sure the admin cant change any settings anymore
+                context.dispatcher.user_data[saved_id].clear()
             else:
                 admin_ids.remove(saved_id)
         if admin_ids:
             database.add_group_admins(group.id, admin_ids)
+    # since this job runs once per day, we call the backup function from here
+    backup(context.bot)
+
+
+def backup(bot):
+    run = subprocess.run(["mongodump", "-dreportbot", "--gzip", "--archive"], capture_output=True)
+    output = io.BytesIO(run.stdout)
+    time = datetime.datetime.now().strftime("%d-%m-%Y")
+    bot.send_document(BACKUP_CHANNEL, output, filename=f"{time}.archive.gz")
