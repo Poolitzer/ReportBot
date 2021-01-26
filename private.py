@@ -199,6 +199,9 @@ def group_do_link(update, context):
     linked_group = context.user_data["groups"][int(data[3])]
     # now if we add we call insert group, if we delete remove, then we get the two new group objects back from db
     if data[2] == "add":
+        if not linked_group.administration:
+            query.answer(strings.LINK_GROUP_NO_ADMINISTRATION, show_alert=True)
+            return
         group, linked_group = database.insert_group_link(group.id, linked_group.id)
     else:
         group, linked_group = database.remove_group_link(group.id, linked_group.id)

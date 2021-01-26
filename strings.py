@@ -87,3 +87,5 @@ LINK_GROUP = "Hey. In this menu, you can link groups to each other which you are
              "as well.\n\nLinked to the group <b>{}</b> are these groups right now: {}. If you want to add another " \
              "one, pick one from below; if you want to unlink groups, pick it from down there as well. Back brings " \
              "you back."
+LINK_GROUP_NO_ADMINISTRATION = "Sorry, in order to link me to this group, you need to activate administration mode in" \
+                               "that one as well. This ensures I have appropriate admin rights in it."
