@@ -58,6 +58,9 @@ class Database:
         groups = self.db["groups"].find({"admins": admin_id}, {"_id": 0})
         return [Group(**group) for group in groups]
 
+    def admin_in_group(self, admin_id, chat_id):
+        return self.db["groups"].find_one({"admins": admin_id, "id": chat_id}, {"_id": 0})
+
     def insert_group_report(self, chat_id, new_report):
         if new_report == "b":
             insert = [True, True]

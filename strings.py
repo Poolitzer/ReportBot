@@ -89,3 +89,6 @@ LINK_GROUP = "Hey. In this menu, you can link groups to each other which you are
              "you back."
 LINK_GROUP_NO_ADMINISTRATION = "Sorry, in order to link me to this group, you need to activate administration mode in" \
                                "that one as well. This ensures I have appropriate admin rights in it."
+NO_ADMIN = "Sorry, you have to be an admin to use this function."
+# guy who discovered this and gets an own mention
+NO_ADMIN_J = "J, why did you try this? Ofc its not going to work. I am disappointed..."

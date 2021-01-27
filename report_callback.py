@@ -7,6 +7,31 @@ import strings
 from database import database
 
 
+def admin_check(func):
+    def wrapper(*args, **kwargs):
+        # this is send by ptb
+        update = args[0]
+        # query
+        query = update.callback_query
+        # we get the chat_id from the query_data
+        chat_id = int(query.data.split("_")[2])
+        # and user_id from update
+        user_id = update.effective_user.id
+        # if the person is not an admin we aint gonna let them use this
+        if not database.admin_in_group(user_id, chat_id):
+            # the guy who discovered this feature missing so he gets an unique string
+            if user_id == 441689112:
+                query.answer(strings.NO_ADMIN_J, show_alert=True)
+            # everyone else gets a proper one
+            else:
+                query.answer(strings.NO_ADMIN, show_alert=True)
+            return
+        # otherwise we continue
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def _delete_messages(context, query, data, already_deleted, delete_report=True):
     # we set this to true and will change it later if the report is actually solved from the group. if its a PM, we need
     # to delete this message later
@@ -68,6 +93,7 @@ def _delete_messages(context, query, data, already_deleted, delete_report=True):
     return pm, already_deleted
 
 
+@admin_check
 def ignore(update, context):
     # this function does nothing except saying it ignored the message
     query = update.callback_query
@@ -83,6 +109,7 @@ def ignore(update, context):
         query.delete_message()
 
 
+@admin_check
 def delete(update, context):
     # this function deletes the message, but does nothing to the user
     query = update.callback_query
@@ -97,6 +124,7 @@ def delete(update, context):
         query.delete_message()
 
 
+@admin_check
 def restrict(update, context):
     # this function restricts the user for two weeks and deletes the bad message
     query = update.callback_query
@@ -129,6 +157,7 @@ def restrict(update, context):
         query.delete_message()
 
 
+@admin_check
 def ban(update, context):
     # this function bans the user from the chat and deletes the bad message
     query = update.callback_query
