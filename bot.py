@@ -21,8 +21,8 @@ def main():
     dp = updater.dispatcher
     # group handlers
     dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, group.added))
-    # thanks to https://t.me/dotvhs, who likes regex (weird). test: https://regex101.com/r/h4oH0X/2
-    dp.add_handler(MessageHandler(Filters.regex(r"(\s|^)(/report|@admins?)(\s|$)") & Filters.chat_type.groups,
+    # thanks to https://t.me/dotvhs and https://t.me/twitface, who like regex (weird). test: https://regex101.com/r/Amrm07/1
+    dp.add_handler(MessageHandler(Filters.regex(r"^/report\b|(^|\s)@admin[a-z_]{0,27}\b") & Filters.chat_type.groups,
                                   group.report))
     dp.add_handler(CommandHandler("reload_admins", group.reload_admins, Filters.chat_type.groups))
     # private handlers
