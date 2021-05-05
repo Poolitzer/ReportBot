@@ -1,6 +1,6 @@
 import html
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.error import Unauthorized, BadRequest
 from telegram.utils.helpers import mention_html
 
@@ -10,12 +10,68 @@ from database import database
 from objects import Group
 
 
-def added(update, context):
-    if context.bot.id not in [x.id for x in update.effective_message.new_chat_members]:
+def chat_member_update(update, context):
+    status_change = update.chat_member.difference().get("status")
+
+    if status_change is None:
         return
-    update.effective_message.reply_text(strings.ADDED)
-    chat = update.effective_chat
-    database.add_group(Group(chat.id, html.escape(chat.title), [x.user.id for x in chat.get_administrators()]))
+
+    old_status, new_status = status_change
+
+    # luckily, we need not to worry about creator change, they can only change an admin to a creator, who then gets
+    # an admin themselves
+
+    if old_status == ChatMember.ADMINISTRATOR and new_status in [
+        ChatMember.LEFT,
+        ChatMember.KICKED,
+        ChatMember.RESTRICTED,
+    ]:
+        database.remove_group_admin(
+            update.effective_chat.id, update.chat_member.new_chat_member.user.id
+        )
+        # this makes sure the admin cant change any settings anymore
+        context.dispatcher.user_data[update.chat_member.new_chat_member.user.id].clear()
+    elif (
+        old_status
+        in [
+            ChatMember.LEFT,
+            ChatMember.KICKED,
+            ChatMember.RESTRICTED,
+        ]
+        and new_status == ChatMember.ADMINISTRATOR
+    ):
+        database.add_group_admins(
+            update.effective_chat.id, [update.chat_member.new_chat_member.user.id]
+        )
+
+
+def my_chat_member_update(update, _):
+
+    if update.effective_chat.type not in ["group", "supergroup"]:
+        # we only care if we were added or removed from a group
+        return
+
+    status_change = update.my_chat_member.difference().get("status")
+
+    if status_change is None:
+        return
+
+    old_status, new_status = status_change
+
+    if new_status in [
+        ChatMember.LEFT,
+        ChatMember.KICKED,
+    ]:
+        database.remove_group(update.effective_chat.id)
+    elif new_status in [ChatMember.ADMINISTRATOR, ChatMember.MEMBER]:
+        chat = update.effective_chat
+        database.add_group(
+            Group(
+                chat.id,
+                html.escape(chat.title),
+                [x.user.id for x in chat.get_administrators()],
+            )
+        )
 
 
 def report(update, context):
@@ -43,15 +99,19 @@ def report(update, context):
         message = update.effective_message.reply_to_message
         # this button list gets attached if administration mode is on
         if proceed.administration:
-            buttons = [InlineKeyboardButton("Ignore", callback_data="report_ignore"),
-                       InlineKeyboardButton("Delete", callback_data="report_del"),
-                       InlineKeyboardButton("Restrict", callback_data="report_restrict"),
-                       InlineKeyboardButton("Ban", callback_data="report_ban")]
+            buttons = [
+                InlineKeyboardButton("Ignore", callback_data="report_ignore"),
+                InlineKeyboardButton("Delete", callback_data="report_del"),
+                InlineKeyboardButton("Restrict", callback_data="report_restrict"),
+                InlineKeyboardButton("Ban", callback_data="report_ban"),
+            ]
             # this for loop adds chat, user and message id information to each query so it doesn't matter where someone
             # presses it the bot can still take appropriate actions
             for button in buttons:
-                button.callback_data += f"_{chat_id}_{message.message_id}_{message.from_user.id}_" \
-                                        f"{update.effective_message.message_id}"
+                button.callback_data += (
+                    f"_{chat_id}_{message.message_id}_{message.from_user.id}_"
+                    f"{update.effective_message.message_id}"
+                )
             buttons = utils.build_menu(buttons, 2)
         else:
             # the buttons are an empty lists since we can pass this to telegram and they wont add buttons but wont
@@ -64,10 +124,14 @@ def report(update, context):
     # all members in .group needs to be mentioned
     if isinstance(proceed.group, list):
         # this generates a string, which appears empty on telegram clients, but in fact is all mentions after another
-        mention_string = "".join([mention_html(i, u'\u200D') for i in proceed.group])
+        mention_string = "".join([mention_html(i, "\u200D") for i in proceed.group])
         # we use reply_text so we reply to the message
-        m = message.reply_text(mention_string + strings.REPORT, parse_mode="HTML",
-                               reply_markup=InlineKeyboardMarkup(buttons), allow_sending_without_reply=True)
+        m = message.reply_text(
+            mention_string + strings.REPORT,
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(buttons),
+            allow_sending_without_reply=True,
+        )
         # if this message has buttons we have to add the message id to our cache so we can delete it when the report
         # gets solved
         if m.reply_markup:
@@ -84,7 +148,9 @@ def report(update, context):
         title = update.effective_chat.title
         # if the reported chat has a username, we create a link to the group, otherwise the name must be enough
         if update.effective_chat.username:
-            title = f"<a href=\"https://t.me/{update.effective_chat.username}\">{title}</a>"
+            title = (
+                f'<a href="https://t.me/{update.effective_chat.username}">{title}</a>'
+            )
         else:
             title = f"<b>{title}</b>"
         # if the message has a direct link to it, we insert it as the first button here
@@ -93,16 +159,35 @@ def report(update, context):
         # now we iterate through all admins in pm and send them a private message
         for user_id in proceed.pm:
             try:
-                context.bot.send_message(user_id, strings.PM.format(title), parse_mode="HTML",
-                                         reply_markup=InlineKeyboardMarkup(buttons))
-            except Unauthorized and BadRequest:
+                context.bot.send_message(
+                    user_id,
+                    strings.PM.format(title),
+                    parse_mode="HTML",
+                    reply_markup=InlineKeyboardMarkup(buttons),
+                )
+            except Unauthorized or BadRequest:
                 # if they blocked the bot we put them in off
                 database.insert_group_mention(chat_id, proceed.group, "o", user_id)
 
 
-def reload_admins(update, _):
+def reload_admins(update, context):
     admin_ids = [x.user.id for x in update.effective_chat.get_administrators()]
-    database.add_group_admins(update.effective_chat.id, admin_ids)
+    known_admins = database.get_group_admins(update.effective_chat.id)
+    new_admins = []
+    for admin_id in admin_ids:
+        if admin_id not in known_admins:
+            new_admins.append(admin_id)
+        else:
+            known_admins.remove(admin_id)
+    if known_admins:
+        for id_to_remove in known_admins:
+            database.remove_group_admin(
+                update.effective_chat.id, id_to_remove
+            )
+            # this makes sure the admin cant change any settings anymore
+            context.dispatcher.user_data[id_to_remove].clear()
+    if new_admins:
+        database.add_group_admins(update.effective_chat.id, new_admins)
     update.effective_message.reply_text(strings.ADMIN_RELOAD)
 
 

@@ -5,8 +5,6 @@ import subprocess
 from database import database
 from objects import Admin
 
-from telegram.error import BadRequest, Unauthorized
-
 from tokens import BACKUP_CHANNEL
 
 
@@ -31,7 +29,9 @@ def half_hourly(context):
             if admin.rotation:
                 continue
             dt1 = datetime.datetime.strptime(admin.until, "%H:%M")
-            td = datetime.timedelta(hours=dt1.hour - now.hour, minutes=dt1.minute - now.minute)
+            td = datetime.timedelta(
+                hours=dt1.hour - now.hour, minutes=dt1.minute - now.minute
+            )
             # if the total seconds are more then 0, its not our time yet
             if int(td.total_seconds()) > 0:
                 continue
@@ -41,7 +41,9 @@ def half_hourly(context):
     timeoff_admins = database.get_timeoff(day, float(now.strftime("%H.%M")))
     for admin in timeoff_admins:
         dt1 = datetime.datetime.strptime(admin.days[day]["until"], "%H:%M")
-        td = datetime.timedelta(hours=dt1.hour - now.hour, minutes=dt1.minute - now.minute)
+        td = datetime.timedelta(
+            hours=dt1.hour - now.hour, minutes=dt1.minute - now.minute
+        )
         if td.total_seconds() < 0:
             rotation = True
         else:
@@ -49,39 +51,19 @@ def half_hourly(context):
         groups = {}
         for group_id in admin.days[day]["groups"]:
             groups[group_id] = admin.groups[group_id]
-        context_dict = {"rotation": rotation, "until": admin.days[day]["until"], "groups": groups}
+        context_dict = {
+            "rotation": rotation,
+            "until": admin.days[day]["until"],
+            "groups": groups,
+        }
         context.job.context["admins"][admin.id] = context_dict
         database.start_timeout(groups.keys(), admin.id)
 
 
-def group_check(context):
-    for group in database.get_groups():
-        try:
-            admins = context.bot.get_chat_administrators(group.id)
-        except BadRequest and Unauthorized as e:
-            if e.message == "Chat not found" or e.message == "Forbidden: bot was kicked from the supergroup chat":
-                database.remove_group(group.id)
-                continue
-            else:
-                break
-        admin_ids = [admin.user.id for admin in admins]
-        if group.admins == admin_ids:
-            continue
-        for saved_id in group.admins:
-            if saved_id not in admin_ids:
-                database.remove_group_admin(group.id, saved_id)
-                # this makes sure the admin cant change any settings anymore
-                context.dispatcher.user_data[saved_id].clear()
-            else:
-                admin_ids.remove(saved_id)
-        if admin_ids:
-            database.add_group_admins(group.id, admin_ids)
-    # since this job runs once per day, we call the backup function from here
-    backup(context.bot)
-
-
-def backup(bot):
-    run = subprocess.run(["mongodump", "-dreportbot", "--gzip", "--archive"], capture_output=True)
+def backup_job(context):
+    run = subprocess.run(
+        ["mongodump", "-dreportbot", "--gzip", "--archive"], capture_output=True
+    )
     output = io.BytesIO(run.stdout)
     time = datetime.datetime.now().strftime("%d-%m-%Y")
-    bot.send_document(BACKUP_CHANNEL, output, filename=f"{time}.archive.gz")
+    context.bot.send_document(BACKUP_CHANNEL, output, filename=f"{time}.archive.gz")
