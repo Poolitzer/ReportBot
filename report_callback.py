@@ -21,7 +21,7 @@ def admin_check(func):
         if not database.admin_in_group(user_id, chat_id):
             # the guy who discovered this feature missing so he gets an unique string
             if user_id == 441689112:
-                query.answer(strings.NO_ADMIN_J, show_alert=True)
+                query.answer(strings.NO_ADMIN_AM, show_alert=True)
             # everyone else gets a proper one
             else:
                 query.answer(strings.NO_ADMIN, show_alert=True)
