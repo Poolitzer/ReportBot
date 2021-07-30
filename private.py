@@ -52,7 +52,8 @@ def select_group(update, context):
             break
     user_id = update.effective_user.id
     buttons = group_setting_buttons(user_data["group"], user_id)
-    query.edit_message_text(strings.SETTINGS_MESSAGE.format(user_data["group"].title),
+    link = f"<a href=\"https://t.me/c/{str(user_data['group'].id)[3:]}/10000000\">{user_data['group'].title}</a>"
+    query.edit_message_text(strings.SETTINGS_MESSAGE.format(link),
                             reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
     user_data["groups"].remove(context.user_data["group"])
     query.answer()

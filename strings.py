@@ -11,7 +11,7 @@ SETTINGS_COMMAND = "You want to change the settings of one of the groups you are
                    "Pick the group below. If you don't see yours in there but are 100% sure you are an admin in this " \
                    "group (and that I am in it), send the command /reload_admins in the group, then send /settings " \
                    "here again."
-SETTINGS_MESSAGE = "You are changing settings for the group <b>{}</b>\nLet me explain what the buttons you see below " \
+SETTINGS_MESSAGE = "You are changing settings for the group {}.\nLet me explain what the buttons you see below " \
                    "mean:\n\n* <b>Report</b>: Which report triggers are used in the group. Its @admin and/or /report." \
                    "\n* <b>Reply</b>: If the bot replies to the report in the group or not.\n* <b>Mention</b>: How " \
                    "<i>you</i> are mentioned. Either mentioned in the reply message (for that, <b>Reply</b> needs to " \
