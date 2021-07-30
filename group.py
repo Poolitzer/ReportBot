@@ -18,28 +18,15 @@ def chat_member_update(update, context):
 
     old_status, new_status = status_change
 
-    # luckily, we need not to worry about creator change, they can only change an admin to a creator, who then gets
-    # an admin themselves
+    # luckily, we need not to worry about creator demote, they get promoted to admin automatically
 
-    if old_status == ChatMember.ADMINISTRATOR and new_status in [
-        ChatMember.LEFT,
-        ChatMember.KICKED,
-        ChatMember.RESTRICTED,
-    ]:
+    if old_status == ChatMember.ADMINISTRATOR and new_status != ChatMember.CREATOR:
         database.remove_group_admin(
             update.effective_chat.id, update.chat_member.new_chat_member.user.id
         )
         # this makes sure the admin cant change any settings anymore
         context.dispatcher.user_data[update.chat_member.new_chat_member.user.id].clear()
-    elif (
-        old_status
-        in [
-            ChatMember.LEFT,
-            ChatMember.KICKED,
-            ChatMember.RESTRICTED,
-        ]
-        and new_status == ChatMember.ADMINISTRATOR
-    ):
+    elif new_status in [ChatMember.ADMINISTRATOR, ChatMember.CREATOR]:
         database.add_group_admins(
             update.effective_chat.id, [update.chat_member.new_chat_member.user.id]
         )
