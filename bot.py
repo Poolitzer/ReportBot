@@ -1,7 +1,12 @@
 import datetime
 import logging
 
-from telegram import Update
+from telegram import (
+    Update,
+    BotCommand,
+    BotCommandScopeAllChatAdministrators,
+    BotCommandScopeAllPrivateChats,
+)
 from telegram.ext import (
     Updater,
     MessageHandler,
@@ -135,6 +140,7 @@ def main():
     dp.add_handler(
         CommandHandler("timeoff_del", private.timeoff_del, Filters.chat_type.private)
     )
+    dp.add_handler(CommandHandler("cancel", private.cancel, Filters.chat_type.private))
     # just for the sake of it (BLUE TEXT), do not use it in private
     dp.add_handler(
         CommandHandler(
@@ -164,6 +170,24 @@ def main():
     )
     updater.job_queue.run_daily(
         backup_job, datetime.time(12, 0, 0), name="Backup database"
+    )
+    # set private commands
+    dp.bot.set_my_commands(
+        [
+            BotCommand("start", "Short greeting message"),
+            BotCommand("settings", "change settings of administrated groups"),
+            BotCommand("help", "Long help message"),
+            BotCommand(
+                "timeout",
+                "set a timeout for some time between now and sometime in the next 24 hours",
+            ),
+            BotCommand(
+                "timeoff", "Specifiy do not disturb times for each day of the week"
+            ),
+            BotCommand("timeoff_del", "Delete yourself from the timeoff list"),
+            BotCommand("cancel", "Cancel the current action"),
+        ],
+        scope=BotCommandScopeAllPrivateChats(),
     )
     updater.idle()
 
