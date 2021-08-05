@@ -12,6 +12,8 @@ from objects import Admin
 from tokens import DEV_ID
 from utils import build_menu, group_setting_buttons, edit, group_id_generator
 
+TIMEOUT_REPLY, TIMEOFF_REPLY = range(2)
+
 
 def group_check(func):
     def wrapper(*args, **kwargs):
@@ -32,9 +34,14 @@ def start(update, _):
 def settings(update, context):
     user_id = update.effective_user.id
     groups = database.get_groups_admin(user_id)
-    buttons = [InlineKeyboardButton(group.title, callback_data=f"settings_{group.id}") for group in groups]
-    update.effective_message.reply_text(strings.SETTINGS_COMMAND,
-                                        reply_markup=InlineKeyboardMarkup(build_menu(buttons, 2)))
+    buttons = [
+        InlineKeyboardButton(group.title, callback_data=f"settings_{group.id}")
+        for group in groups
+    ]
+    update.effective_message.reply_text(
+        strings.SETTINGS_COMMAND,
+        reply_markup=InlineKeyboardMarkup(build_menu(buttons, 2)),
+    )
     context.user_data["groups"] = groups
 
 
@@ -53,8 +60,11 @@ def select_group(update, context):
     user_id = update.effective_user.id
     buttons = group_setting_buttons(user_data["group"], user_id)
     link = f"<a href=\"https://t.me/c/{str(user_data['group'].id)[3:]}/10000000\">{user_data['group'].title}</a>"
-    query.edit_message_text(strings.SETTINGS_MESSAGE.format(link),
-                            reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
+    query.edit_message_text(
+        strings.SETTINGS_MESSAGE.format(link),
+        reply_markup=InlineKeyboardMarkup(buttons),
+        parse_mode="HTML",
+    )
     user_data["groups"].remove(context.user_data["group"])
     query.answer()
 
@@ -135,7 +145,9 @@ def group_administration(update, context):
         group.administration = False
     else:
         # activating it is not. we need to make sure the bot is an admin with the appropriate rights
-        bot_admin = context.bot.get_chat_member(chat_id=group.id, user_id=context.bot.id)
+        bot_admin = context.bot.get_chat_member(
+            chat_id=group.id, user_id=context.bot.id
+        )
         query = update.callback_query
         # if the bot is not an admin, the other attributes won't be there, that is why we have two checks
         if bot_admin.status != "administrator":
@@ -169,10 +181,14 @@ def group_link(update, context):
         # here we decide if the callback is the one to link or unlink the group, sparing us the logic later. If the
         # group is already in linked_groups, the admin wants to unlink them, otherwise link
         if g.id in group.linked_groups:
-            buttons.append(InlineKeyboardButton(g.title, callback_data=f"set_linked_del_{i}"))
+            buttons.append(
+                InlineKeyboardButton(g.title, callback_data=f"set_linked_del_{i}")
+            )
             linked_to_text += f"<b>{g.title}</b>, "
         else:
-            buttons.append(InlineKeyboardButton(g.title, callback_data=f"set_linked_add_{i}"))
+            buttons.append(
+                InlineKeyboardButton(g.title, callback_data=f"set_linked_add_{i}")
+            )
     # if no group is linked, we change our string to say this to the user
     if not linked_to_text:
         linked_to_text = "None"
@@ -182,7 +198,9 @@ def group_link(update, context):
     # this back button will be used to get back to the settings menu of the group
     back_button = InlineKeyboardButton("Back", callback_data="set_linked_back")
     # here we put it in a reply markup, and generate the string to send it to the user (speak: edit the message)
-    reply_markup = InlineKeyboardMarkup(build_menu(buttons, 2, footer_buttons=back_button))
+    reply_markup = InlineKeyboardMarkup(
+        build_menu(buttons, 2, footer_buttons=back_button)
+    )
     text = strings.LINK_GROUP.format(group.title, linked_to_text)
     query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
     # this call is needed, otherwise some clients will show a loading indication
@@ -221,8 +239,11 @@ def group_link_back(update, context):
     user_id = update.effective_user.id
     # this is the same as select_group outcome
     buttons = group_setting_buttons(context.user_data["group"], user_id)
-    query.edit_message_text(strings.SETTINGS_MESSAGE.format(context.user_data["group"].title),
-                            reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML")
+    query.edit_message_text(
+        strings.SETTINGS_MESSAGE.format(context.user_data["group"].title),
+        reply_markup=InlineKeyboardMarkup(buttons),
+        parse_mode="HTML",
+    )
     # this call is needed, otherwise some clients will show a loading indication
     query.answer()
 
@@ -230,9 +251,14 @@ def group_link_back(update, context):
 def back(update, context):
     user_id = update.effective_user.id
     groups = database.get_groups_admin(user_id)
-    buttons = [InlineKeyboardButton(group.title, callback_data=f"settings_{group.id}") for group in groups]
-    update.callback_query.edit_message_text(strings.SETTINGS_COMMAND,
-                                            reply_markup=InlineKeyboardMarkup(build_menu(buttons, 2)))
+    buttons = [
+        InlineKeyboardButton(group.title, callback_data=f"settings_{group.id}")
+        for group in groups
+    ]
+    update.callback_query.edit_message_text(
+        strings.SETTINGS_COMMAND,
+        reply_markup=InlineKeyboardMarkup(build_menu(buttons, 2)),
+    )
     context.user_data["groups"] = groups
     if "group" in context.user_data:
         del context.user_data["group"]
@@ -252,15 +278,16 @@ def timeout_command(update, context):
     groups = database.get_groups_admin(user_id)
     group_string = group_id_generator(groups)
     now = datetime.datetime.now()
-    update.effective_message.reply_text(strings.TIMEOUT_COMMAND.format(group_string, now.strftime("%H:%M")),
-                                        parse_mode="HTML")
-    context.user_data.update({"timeout": True, "groups": groups, "now": now})
+    update.effective_message.reply_text(
+        strings.TIMEOUT_COMMAND.format(group_string, now.strftime("%H:%M")),
+        parse_mode="HTML",
+    )
+    context.user_data.update({"groups": groups, "now": now})
+    return TIMEOUT_REPLY
 
 
 def timeout(update, context):
     user_data = context.user_data
-    if "timeout" not in user_data:
-        return
     message = update.effective_message
     user_input = message.text.split(" ")
     user_id = update.effective_user.id
@@ -301,6 +328,7 @@ def timeout(update, context):
     database.start_timeout([x.id for x in groups], user_id)
     message.reply_text(strings.TIMEOUT_SUCCEED)
     user_data.clear()
+    return -1
 
 
 def timeoff_command(update, context):
@@ -308,15 +336,16 @@ def timeoff_command(update, context):
     groups = database.get_groups_admin(user_id)
     group_string = group_id_generator(groups)
     now = datetime.datetime.now()
-    update.effective_message.reply_text(strings.TIMEOFF_COMMAND.format(group_string, now.strftime("%a - %H:%M")),
-                                        parse_mode="HTML")
-    context.user_data.update({"timeoff": True, "groups": groups, "now": now})
+    update.effective_message.reply_text(
+        strings.TIMEOFF_COMMAND.format(group_string, now.strftime("%a - %H:%M")),
+        parse_mode="HTML",
+    )
+    context.user_data.update({"groups": groups, "now": now})
+    return TIMEOFF_REPLY
 
 
 def timeoff(update, context):
     user_data = context.user_data
-    if "timeoff" not in user_data:
-        return
     message = update.effective_message
     user_days = message.text.split("\n")
     user_id = update.effective_user.id
@@ -326,6 +355,7 @@ def timeoff(update, context):
     for index, user_day in enumerate(user_days):
         if len(user_day) != 3:
             message.reply_text(strings.TIMEOFF_WHITESPACE.format(index))
+            return
         if user_day[1] == "all":
             groups = user_data["groups"]
         else:
@@ -360,16 +390,28 @@ def timeoff(update, context):
         if not user_day[0].lower() in admin.days:
             message.reply_text(strings.TIMEOFF_DAY.format(index))
             return
-        admin.days[user_day[0].lower()] = {"groups": group_ids, "until": user_day[2].split(",")[1],
-                                           "when": float(user_day[2].split(",")[0].replace(":", "."))}
+        admin.days[user_day[0].lower()] = {
+            "groups": group_ids,
+            "until": user_day[2].split(",")[1],
+            "when": float(user_day[2].split(",")[0].replace(":", ".")),
+        }
     database.insert_timeoff(admin)
     update.effective_message.reply_text(strings.TIMEOFF_SUCCEED)
     user_data.clear()
+    return -1
+
+
+def cancel(update, context):
+    update.effective_message.reply_text(strings.CANCEL)
+    context.user_data.clear()
+    return -1
 
 
 def timeoff_del(update, _):
     success = database.delete_timeoff(update.effective_user.id)
-    update.effective_message.reply_text(strings.TIMEOFF_DELETE_SUCCESS if success else strings.TIMEOFF_DELETE_FAIL)
+    update.effective_message.reply_text(
+        strings.TIMEOFF_DELETE_SUCCESS if success else strings.TIMEOFF_DELETE_FAIL
+    )
 
 
 def error_handler(update, context):
@@ -381,19 +423,21 @@ def error_handler(update, context):
     payload = ""
     # normally, we always have an user. If not, its either a channel or a poll update.
     if update.effective_user:
-        payload += f' with the user {mention_html(update.effective_user.id, update.effective_user.first_name)}'
+        payload += f" with the user {mention_html(update.effective_user.id, update.effective_user.first_name)}"
     # there are more situations when you don't get a chat
     if update.effective_chat and update.effective_chat.type != "private":
-        payload += f' within the chat <i>{html.escape(update.effective_chat.title)}</i>'
+        payload += f" within the chat <i>{html.escape(update.effective_chat.title)}</i>"
         if update.effective_chat.username:
-            payload += f' (@{html.escape(update.effective_chat.username)})'
+            payload += f" (@{html.escape(update.effective_chat.username)})"
     # but only one where you have an empty payload by now: A poll (buuuh)
     if update.poll:
-        payload += f' with the poll id {update.poll.id}.'
+        payload += f" with the poll id {update.poll.id}."
     context.bot.send_message(DEV_ID, "Error happened:", parse_mode="HTML")
     trace = html.escape("".join(traceback.format_tb(sys.exc_info()[2])))
-    text = f"Oh no. The error <code>{context.error}</code> happened{payload}. The type of the chat " \
-           f"is <code>{chat.type}</code>. The current user data is <code>{context.user_data}</code>," \
-           f"the chat data <code>{context.chat_data}</code>.\nThe full traceback:\n\n<code>{trace}</code>"
+    text = (
+        f"Oh no. The error <code>{context.error}</code> happened{payload}. The type of the chat "
+        f"is <code>{chat.type}</code>. The current user data is <code>{context.user_data}</code>,"
+        f"the chat data <code>{context.chat_data}</code>.\nThe full traceback:\n\n<code>{trace}</code>"
+    )
     context.bot.send_message(DEV_ID, text, parse_mode="HTML")
     raise
