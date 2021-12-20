@@ -126,6 +126,8 @@ BOT_MESSAGE_ALREADY_DELETED = (
 )
 RESTRICT = "The reported message was deleted and the sender restricted for two weeks."
 BAN = "The reported message was deleted and the sender banned from the group!"
+BAN_CHANNEL = "The reported message was deleted and the sender channel banned from the group. The user behind this " \
+              "message can only write as their user account now!"
 LINK_GROUP = (
     "Hey. In this menu, you can link groups to each other which you are an admin in. This means that every "
     "ban or restrict action I do in one group of the linked one I am going to do in all of the linked ones "

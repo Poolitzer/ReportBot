@@ -1,6 +1,6 @@
 import html
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ChatMember, Update
 from telegram.error import Unauthorized, BadRequest
 from telegram.utils.helpers import mention_html
 
@@ -61,7 +61,7 @@ def my_chat_member_update(update, _):
         )
 
 
-def report(update, context):
+def report(update: Update, context):
     # this function takes care of reports send into the group
     # this takes the actual report out of the potential longer message, so we can use it later
     report_string = str(context.matches[0].group(0)).strip()
@@ -86,19 +86,34 @@ def report(update, context):
         message = update.effective_message.reply_to_message
         # this button list gets attached if administration mode is on
         if proceed.administration:
-            buttons = [
-                InlineKeyboardButton("Ignore", callback_data="report_ignore"),
-                InlineKeyboardButton("Delete", callback_data="report_del"),
-                InlineKeyboardButton("Restrict", callback_data="report_restrict"),
-                InlineKeyboardButton("Ban", callback_data="report_ban"),
-            ]
-            # this for loop adds chat, user and message id information to each query so it doesn't matter where someone
-            # presses it the bot can still take appropriate actions
-            for button in buttons:
-                button.callback_data += (
-                    f"_{chat_id}_{message.message_id}_{message.from_user.id}_"
-                    f"{update.effective_message.message_id}"
-                )
+            # if we have a normal user message being reported, having all buttons make sense
+            if not message.sender_chat:
+                buttons = [
+                    InlineKeyboardButton("Ignore", callback_data="report_ignore"),
+                    InlineKeyboardButton("Delete", callback_data="report_del"),
+                    InlineKeyboardButton("Restrict", callback_data="report_restrict"),
+                    InlineKeyboardButton("Ban", callback_data="report_ban"),
+                ]
+                # this for loop adds chat, user and message id information to each query so it doesn't matter
+                # where (PM or in group) someone presses it the bot can still take appropriate actions
+                for button in buttons:
+                    button.callback_data += (
+                        f"_{chat_id}_{message.message_id}_{message.from_user.id}_"
+                        f"{update.effective_message.message_id}"
+                    )
+            # if we dont, a channel is reported, which we can only ban, not restrict, and needs a different
+            else:
+                buttons = [
+                    InlineKeyboardButton("Ignore", callback_data="report_ignore"),
+                    InlineKeyboardButton("Delete", callback_data="report_del"),
+                    InlineKeyboardButton("Ban", callback_data="report_ban"),
+                ]
+                for button in buttons:
+                    # also, the bad user id is different
+                    button.callback_data += (
+                        f"_{chat_id}_{message.message_id}_{message.sender_chat.id}_"
+                        f"{update.effective_message.message_id}"
+                    )
             buttons = utils.build_menu(buttons, 2)
         else:
             # the buttons are an empty lists since we can pass this to telegram and they wont add buttons but wont
@@ -112,10 +127,9 @@ def report(update, context):
     if isinstance(proceed.group, list):
         # this generates a string, which appears empty on telegram clients, but in fact is all mentions after another
         mention_string = "".join([mention_html(i, "\u200D") for i in proceed.group])
-        # we use reply_text so we reply to the message
-        m = message.reply_text(
+        # we use reply_html so we reply to the message and have html as parse_mode set
+        m = message.reply_html(
             mention_string + strings.REPORT,
-            parse_mode="HTML",
             reply_markup=InlineKeyboardMarkup(buttons),
             allow_sending_without_reply=True,
         )

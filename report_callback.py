@@ -2,6 +2,7 @@ import datetime
 
 from telegram import ChatPermissions
 from telegram.error import BadRequest
+from telegram.ext import CallbackContext
 
 import strings
 from database import database
@@ -158,24 +159,36 @@ def restrict(update, context):
 
 
 @admin_check
-def ban(update, context):
-    # this function bans the user from the chat and deletes the bad message
+def ban(update, context: CallbackContext):
+    # this function bans the user/channel from the chat and deletes the bad message
     query = update.callback_query
     # see in delete_messages what this returns
     data = query.data.split("_")
-    # we need these two to restrict the user later
+    # we need these two to restrict the user/channel later
     bad_user_id = int(data[4])
     chat_id = int(data[2])
     pm, already_deleted = _delete_messages(context, query, data, False)
     # if no error happened, already_deleted is False, so we are good to go
     if not already_deleted:
-        context.bot.kick_chat_member(chat_id=chat_id, user_id=bad_user_id)
+        # a channel will have a negative id, a user a positive one
+        if bad_user_id < 0:
+            context.bot.ban_chat_sender_chat(chat_id=chat_id, sender_chat_id=bad_user_id)
+        else:
+            context.bot.kick_chat_member(chat_id=chat_id, user_id=bad_user_id)
         # now we check if there are linked groups and if yes, we ban from there
         linked_groups = database.get_group_link(chat_id=chat_id)
         if linked_groups:
-            for group_id in linked_groups:
-                context.bot.kick_chat_member(chat_id=group_id, user_id=bad_user_id)
+            # the two for loops do look a bit unnecessary, but its more effective than having to
+            # do an if else each iteration
+            if bad_user_id < 0:
+                context.bot.ban_chat_sender_chat(chat_id=chat_id, sender_chat_id=bad_user_id)
+            else:
+                for group_id in linked_groups:
+                    context.bot.kick_chat_member(chat_id=group_id, user_id=bad_user_id)
         # and tell the user that
-        query.answer(strings.BAN, show_alert=True)
+        if bad_user_id < 0:
+            query.answer(strings.BAN_CHANNEL, show_alert=True)
+        else:
+            query.answer(strings.BAN, show_alert=True)
     if pm:
         query.delete_message()
